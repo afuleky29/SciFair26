@@ -64,110 +64,85 @@
 <div id="output"></div>
 
 <script>
+const BACKEND_URL = "https://scifair-backend.onrender.com/infer";
 
-    // UI controls
-    function hideAll() {
-        document.getElementById("urlInput").style.display = "none";
-        document.getElementById("fileInput").style.display = "none";
-        document.getElementById("webcamContainer").style.display = "none";
-        document.getElementById("webcam").style.display = "none";
-    }
+/* ---------- UI ---------- */
+function hideAll() {
+  ["urlInput","fileInput","webcamContainer"].forEach(
+    id => document.getElementById(id).style.display = "none"
+  );
+}
 
-    function selectURL() {
-        hideAll();
-        document.getElementById("urlInput").style.display = "block";
-    }
+function selectURL() {
+  hideAll();
+  document.getElementById("urlInput").style.display = "block";
+}
 
-    function selectFile() {
-        hideAll();
-        document.getElementById("fileInput").style.display = "block";
-    }
+function selectFile() {
+  hideAll();
+  document.getElementById("fileInput").style.display = "block";
+}
 
-    async function selectWebcam() {
-        hideAll();
-        document.getElementById("webcamContainer").style.display = "block";
+async function selectWebcam() {
+  hideAll();
+  const container = document.getElementById("webcamContainer");
+  container.style.display = "block";
 
-        const video = document.getElementById("webcam");
-        video.style.display = "block";
+  const video = document.getElementById("webcam");
+  video.srcObject = await navigator.mediaDevices.getUserMedia({ video: true });
+}
 
-        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-        video.srcObject = stream;
-    }
+/* ---------- SEND TO BACKEND ---------- */
+async function send(image) {
+  const res = await fetch(BACKEND_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ image })
+  });
 
-    // Run workflow using URL
-    async function runURL() {
-        const url = document.getElementById("imageUrl").value.trim();
-        if (!url) return alert("Enter a valid URL.");
+  const data = await res.json();
+  document.getElementById("output").textContent =
+    JSON.stringify(data, null, 2);
+}
 
-        document.getElementById("preview").src = url;
-        document.getElementById("preview").style.display = "block";
+/* ---------- URL ---------- */
+function runURL() {
+  const url = document.getElementById("imageUrl").value.trim();
+  if (!url) return alert("Enter a URL");
 
-        sendToRoboflow({ type: "url", value: url });
-    }
+  document.getElementById("preview").src = url;
+  document.getElementById("preview").style.display = "block";
+  send(url);
+}
 
-    // Run workflow using File Upload
-    async function runFile() {
-        const file = document.getElementById("filePicker").files[0];
-        if (!file) return alert("Choose a file first.");
+/* ---------- FILE ---------- */
+function runFile() {
+  const file = document.getElementById("filePicker").files[0];
+  if (!file) return alert("Choose a file");
 
-        const reader = new FileReader();
-        reader.onload = () => {
-            const base64 = reader.result;
-            document.getElementById("preview").src = base64;
-            document.getElementById("preview").style.display = "block";
+  const reader = new FileReader();
+  reader.onload = () => {
+    document.getElementById("preview").src = reader.result;
+    document.getElementById("preview").style.display = "block";
+    send(reader.result);
+  };
+  reader.readAsDataURL(file);
+}
 
-            sendToRoboflow({ type: "base64", value: base64 });
-        };
-        reader.readAsDataURL(file);
-    }
+/* ---------- WEBCAM ---------- */
+function captureWebcam() {
+  const video = document.getElementById("webcam");
+  const canvas = document.createElement("canvas");
+  canvas.width = video.videoWidth;
+  canvas.height = video.videoHeight;
 
-    // Run workflow using Webcam
-    async function captureWebcam() {
-        const video = document.getElementById("webcam");
+  canvas.getContext("2d").drawImage(video, 0, 0);
+  const base64 = canvas.toDataURL("image/jpeg");
 
-        const canvas = document.createElement("canvas");
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
-
-        const ctx = canvas.getContext("2d");
-        ctx.drawImage(video, 0, 0);
-
-        const base64 = canvas.toDataURL("image/jpeg");
-
-        document.getElementById("preview").src = base64;
-        document.getElementById("preview").style.display = "block";
-
-        sendToRoboflow({ type: "base64", value: base64 });
-    }
-
-    // Send request to Roboflow Workflow
-    async function sendToRoboflow(imgInput) {
-        const response = await fetch(WORKFLOW_URL, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-                api_key: API_KEY,
-                inputs: { image: imgInput }
-            })
-        });
-
-        const result = await response.json();
-        document.getElementById("output").textContent =
-            JSON.stringify(result, null, 2);
-    }
-    async function run() {
-      const image = document.getElementById("imageUrl").value;
-
-      const res = await fetch("https://scifair-backend.onrender.com", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ image })
-      });
-
-      const data = await res.json();
-      document.getElementById("output").textContent =
-        JSON.stringify(data, null, 2);
-    }
+  document.getElementById("preview").src = base64;
+  document.getElementById("preview").style.display = "block";
+  send(base64);
+}
 </script>
 
 </body>
