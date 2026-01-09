@@ -1,147 +1,81 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <meta charset="UTF-8">
-    <title>Roboflow Workflow (URL + File + Webcam)</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            padding: 30px;
-        }
-        #preview {
-            width: 300px;
-            display: none;
-            margin-top: 20px;
-            border-radius: 6px;
-        }
-        #output {
-            background: #f2f2f2;
-            padding: 15px;
-            margin-top: 20px;
-            border-radius: 6px;
-            white-space: pre-wrap;
-            font-family: monospace;
-        }
-        #webcamContainer video {
-            width: 300px;
-            border-radius: 6px;
-            display: none;
-        }
-    </style>
+  <meta charset="UTF-8">
+  <title>Roboflow Demo</title>
 </head>
 <body>
 
-<h1>Roboflow Classifier Demo</h1>
+<h2>Roboflow Classifier</h2>
 
-<h3>Choose Input Method:</h3>
-
-<button onclick="selectURL()">Use URL</button>
-<button onclick="selectFile()">Upload File</button>
-<button onclick="selectWebcam()">Use Webcam</button>
+<!-- URL -->
+<input id="url" size="60" placeholder="Image URL">
+<button onclick="runURL()">Run URL</button>
 
 <br><br>
 
-<!-- URL INPUT -->
-<div id="urlInput" style="display:none;">
-    <input id="imageUrl" type="text" size="60" placeholder="Enter image URL">
-    <button onclick="runURL()">Run with URL</button>
-</div>
+<!-- FILE -->
+<input type="file" id="file">
+<button onclick="runFile()">Run File</button>
 
-<!-- FILE INPUT -->
-<div id="fileInput" style="display:none;">
-    <input type="file" id="filePicker" accept="image/*">
-    <button onclick="runFile()">Run with File</button>
-</div>
+<br><br>
 
-<!-- WEBCAM INPUT -->
-<div id="webcamContainer" style="display:none;">
-    <video id="webcam" autoplay playsinline></video>
-    <br>
-    <button onclick="captureWebcam()">Capture & Run</button>
-</div>
+<!-- WEBCAM -->
+<video id="video" autoplay width="300"></video>
+<br>
+<button onclick="startCam()">Start Camera</button>
+<button onclick="runCam()">Capture</button>
 
-<img id="preview">
-<div id="output"></div>
+<pre id="out"></pre>
 
 <script>
-const BACKEND_URL = "https://scifair-backend.onrender.com/infer";
+const BACKEND = "https://scifair-backend.onrender.com/";
 
-/* ---------- UI ---------- */
-function hideAll() {
-  ["urlInput","fileInput","webcamContainer"].forEach(
-    id => document.getElementById(id).style.display = "none"
-  );
-}
-
-function selectURL() {
-  hideAll();
-  document.getElementById("urlInput").style.display = "block";
-}
-
-function selectFile() {
-  hideAll();
-  document.getElementById("fileInput").style.display = "block";
-}
-
-async function selectWebcam() {
-  hideAll();
-  const container = document.getElementById("webcamContainer");
-  container.style.display = "block";
-
-  const video = document.getElementById("webcam");
-  video.srcObject = await navigator.mediaDevices.getUserMedia({ video: true });
-}
-
-/* ---------- SEND TO BACKEND ---------- */
-async function send(image) {
-  const res = await fetch(BACKEND_URL, {
+async function runURL() {
+  const image = document.getElementById("url").value;
+  const res = await fetch(BACKEND, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: {"Content-Type":"application/json"},
     body: JSON.stringify({ image })
   });
-
-  const data = await res.json();
-  document.getElementById("output").textContent =
-    JSON.stringify(data, null, 2);
+  document.getElementById("out").textContent =
+    JSON.stringify(await res.json(), null, 2);
 }
 
-/* ---------- URL ---------- */
-function runURL() {
-  const url = document.getElementById("imageUrl").value.trim();
-  if (!url) return alert("Enter a URL");
+async function runFile() {
+  const f = document.getElementById("file").files[0];
+  const fd = new FormData();
+  fd.append("file", f);
 
-  document.getElementById("preview").src = url;
-  document.getElementById("preview").style.display = "block";
-  send(url);
+  const res = await fetch(BACKEND, {
+    method: "POST",
+    body: fd
+  });
+  document.getElementById("out").textContent =
+    JSON.stringify(await res.json(), null, 2);
 }
 
-/* ---------- FILE ---------- */
-function runFile() {
-  const file = document.getElementById("filePicker").files[0];
-  if (!file) return alert("Choose a file");
-
-  const reader = new FileReader();
-  reader.onload = () => {
-    document.getElementById("preview").src = reader.result;
-    document.getElementById("preview").style.display = "block";
-    send(reader.result);
-  };
-  reader.readAsDataURL(file);
+async function startCam() {
+  const stream = await navigator.mediaDevices.getUserMedia({video:true});
+  document.getElementById("video").srcObject = stream;
 }
 
-/* ---------- WEBCAM ---------- */
-function captureWebcam() {
-  const video = document.getElementById("webcam");
-  const canvas = document.createElement("canvas");
-  canvas.width = video.videoWidth;
-  canvas.height = video.videoHeight;
+async function runCam() {
+  const v = document.getElementById("video");
+  const c = document.createElement("canvas");
+  c.width = v.videoWidth;
+  c.height = v.videoHeight;
+  c.getContext("2d").drawImage(v,0,0);
+  const base64 = c.toDataURL("image/jpeg");
 
-  canvas.getContext("2d").drawImage(video, 0, 0);
-  const base64 = canvas.toDataURL("image/jpeg");
+  const res = await fetch(BACKEND, {
+    method: "POST",
+    headers: {"Content-Type":"application/json"},
+    body: JSON.stringify({ base64 })
+  });
 
-  document.getElementById("preview").src = base64;
-  document.getElementById("preview").style.display = "block";
-  send(base64);
+  document.getElementById("out").textContent =
+    JSON.stringify(await res.json(), null, 2);
 }
 </script>
 
