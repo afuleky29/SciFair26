@@ -2,88 +2,81 @@
 <html>
 <head>
   <meta charset="UTF-8">
-  <title>Roboflow Demo</title>
+  <title>Roboflow Classifier</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 30px;
+    }
+    button {
+      margin-left: 6px;
+    }
+    img, video {
+      max-width: 300px;
+      margin-top: 15px;
+      display: none;
+      border-radius: 6px;
+    }
+    pre {
+      background: #f2f2f2;
+      padding: 15px;
+      margin-top: 20px;
+      border-radius: 6px;
+      white-space: pre-wrap;
+    }
+  </style>
 </head>
+
 <body>
 
-<h2>Roboflow Classifier</h2>
+<h1>Roboflow Classifier</h1>
 
 <!-- URL -->
-<input id="url" size="60" placeholder="Image URL">
+<input id="imageUrl" placeholder="Image URL" size="60">
 <button onclick="runURL()">Run URL</button>
 
 <br><br>
 
 <!-- FILE -->
-<input type="file" id="file">
+<input type="file" id="filePicker" accept="image/*">
 <button onclick="runFile()">Run File</button>
 
 <br><br>
 
 <!-- WEBCAM -->
-<video id="video" autoplay width="300"></video>
-<br>
-<button onclick="startCam()">Start Camera</button>
-<button onclick="runCam()">Capture</button>
+<button onclick="startCamera()">Start Camera</button>
+<button onclick="captureWebcam()">Capture</button>
 
-<pre id="out"></pre>
+<br><br>
+
+<video id="webcam" autoplay playsinline></video>
+<img id="preview">
+<pre id="output"></pre>
 
 <script>
-const BACKEND_URL = "https://scifair-backend.onrender.com";
+const BACKEND_URL = "https://scifair-backend.onrender.com"; // ← YOUR BACKEND
 
-/* ---------- UI HELPERS ---------- */
-function hideAll() {
-  document.getElementById("urlInput").style.display = "none";
-  document.getElementById("fileInput").style.display = "none";
-  document.getElementById("webcamContainer").style.display = "none";
-}
-
-function selectURL() {
-  hideAll();
-  document.getElementById("urlInput").style.display = "block";
-}
-
-function selectFile() {
-  hideAll();
-  document.getElementById("fileInput").style.display = "block";
-}
-
-async function selectWebcam() {
-  hideAll();
-  document.getElementById("webcamContainer").style.display = "block";
-
-  const video = document.getElementById("webcam");
-  const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-  video.srcObject = stream;
-}
-
-/* ---------- RUN URL ---------- */
+/* ---------- URL ---------- */
 async function runURL() {
   const url = document.getElementById("imageUrl").value.trim();
-  if (!url) return alert("Enter an image URL");
+  if (!url) {
+    alert("Enter an image URL");
+    return;
+  }
 
   document.getElementById("preview").src = url;
   document.getElementById("preview").style.display = "block";
 
-  const res = await fetch(BACKEND_URL, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      image: {
-        type: "url",
-        value: url
-      }
-    })
-  });
-
-  const data = await res.json();
-  showResult(data);
+  sendJSON({ url });
 }
 
-/* ---------- RUN FILE ---------- */
+/* ---------- FILE ---------- */
 async function runFile() {
   const file = document.getElementById("filePicker").files[0];
-  if (!file) return alert("Choose a file first");
+  if (!file) {
+    alert("Choose a file first");
+    return;
+  }
 
   const formData = new FormData();
   formData.append("file", file);
@@ -96,45 +89,45 @@ async function runFile() {
     body: formData
   });
 
-  const data = await res.json();
-  showResult(data);
+  showResult(res);
 }
 
-/* ---------- RUN WEBCAM ---------- */
+/* ---------- WEBCAM ---------- */
+let stream;
+
+async function startCamera() {
+  const video = document.getElementById("webcam");
+  stream = await navigator.mediaDevices.getUserMedia({ video: true });
+  video.srcObject = stream;
+  video.style.display = "block";
+}
+
 async function captureWebcam() {
   const video = document.getElementById("webcam");
+  if (!video.srcObject) {
+    alert("Start camera first");
+    return;
+  }
 
   const canvas = document.createElement("canvas");
   canvas.width = video.videoWidth;
   canvas.height = video.videoHeight;
   canvas.getContext("2d").drawImage(video, 0, 0);
 
-  const base64 = canvas.toDataURL("image/jpeg").split(",")[1];
+  const base64 = canvas.toDataURL("image/jpeg");
 
-  document.getElementById("preview").src = canvas.toDataURL("image/jpeg");
+  document.getElementById("preview").src = base64;
   document.getElementById("preview").style.display = "block";
 
+  sendJSON({ base64 });
+}
+
+/* ---------- HELPERS ---------- */
+async function sendJSON(payload) {
   const res = await fetch(BACKEND_URL, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      image: {
-        type: "base64",
-        value: base64
-      }
-    })
+    body: JSON.stringify(payload)
   });
 
-  const data = await res.json();
-  showResult(data);
-}
-
-/* ---------- DISPLAY RESULT ---------- */
-function showResult(data) {
-  document.getElementById("output").textContent =
-    JSON.stringify(data, null, 2);
-}
-</script>
-
-</body>
-</html>
+  showR
