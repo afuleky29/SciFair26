@@ -1,142 +1,96 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <meta charset="UTF-8">
-  <title>Roboflow Classifier</title>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      padding: 30px;
-    }
-    button {
-      margin-left: 6px;
-    }
-    img, video {
-      max-width: 300px;
-      margin-top: 15px;
-      display: none;
-      border-radius: 6px;
-    }
-    pre {
-      background: #f2f2f2;
-      padding: 15px;
-      margin-top: 20px;
-      border-radius: 6px;
-      white-space: pre-wrap;
-    }
-  </style>
+<meta charset="UTF-8">
+<title>Roboflow Classifier</title>
 </head>
 
 <body>
 
 <h1>Roboflow Classifier</h1>
 
-<!-- URL -->
-<input id="imageUrl" placeholder="Image URL" size="60">
+<input id="imageUrl" size="60" placeholder="Image URL">
 <button onclick="runURL()">Run URL</button>
 
 <br><br>
 
-<!-- FILE -->
-<input type="file" id="filePicker" accept="image/*">
+<input type="file" id="filePicker">
 <button onclick="runFile()">Run File</button>
 
 <br><br>
 
-<!-- WEBCAM -->
 <button onclick="startCamera()">Start Camera</button>
 <button onclick="captureWebcam()">Capture</button>
 
 <br><br>
 
-<video id="webcam" autoplay playsinline></video>
-<img id="preview">
+<video id="webcam" autoplay playsinline style="display:none;width:300px;"></video>
+<img id="preview" style="display:none;width:300px;">
 <pre id="output"></pre>
 
 <script>
-const BACKEND_URL = "https://scifair-backend.onrender.com"; // ← YOUR BACKEND
+const BACKEND_URL = "https://scifair-backend.onrender.com";
 
-/* ---------- URL ---------- */
+/* URL */
 async function runURL() {
-  const url = document.getElementById("imageUrl").value.trim();
-  if (!url) {
-    alert("Enter an image URL");
-    return;
-  }
+  const url = imageUrl.value.trim();
+  if (!url) return alert("Enter URL");
 
-  document.getElementById("preview").src = url;
-  document.getElementById("preview").style.display = "block";
+  preview.src = url;
+  preview.style.display = "block";
 
   sendJSON({ url });
 }
 
-/* ---------- FILE ---------- */
+/* FILE */
 async function runFile() {
-  const file = document.getElementById("filePicker").files[0];
-  if (!file) {
-    alert("Choose a file first");
-    return;
-  }
+  const file = filePicker.files[0];
+  if (!file) return alert("Pick file");
 
-  const formData = new FormData();
-  formData.append("file", file);
+  const fd = new FormData();
+  fd.append("file", file);
 
-  document.getElementById("preview").src = URL.createObjectURL(file);
-  document.getElementById("preview").style.display = "block";
+  preview.src = URL.createObjectURL(file);
+  preview.style.display = "block";
 
-  const res = await fetch(BACKEND_URL, {
-    method: "POST",
-    body: formData
-  });
-
-  showResult(res);
+  const res = await fetch(BACKEND_URL, { method: "POST", body: fd });
+  show(res);
 }
 
-/* ---------- WEBCAM ---------- */
+/* CAMERA */
 let stream;
-
 async function startCamera() {
-  const video = document.getElementById("webcam");
   stream = await navigator.mediaDevices.getUserMedia({ video: true });
-  video.srcObject = stream;
-  video.style.display = "block";
+  webcam.srcObject = stream;
+  webcam.style.display = "block";
 }
 
 async function captureWebcam() {
-  const video = document.getElementById("webcam");
-  if (!video.srcObject) {
-    alert("Start camera first");
-    return;
-  }
-
   const canvas = document.createElement("canvas");
-  canvas.width = video.videoWidth;
-  canvas.height = video.videoHeight;
-  canvas.getContext("2d").drawImage(video, 0, 0);
+  canvas.width = webcam.videoWidth;
+  canvas.height = webcam.videoHeight;
+  canvas.getContext("2d").drawImage(webcam, 0, 0);
 
   const base64 = canvas.toDataURL("image/jpeg");
-
-  document.getElementById("preview").src = base64;
-  document.getElementById("preview").style.display = "block";
+  preview.src = base64;
+  preview.style.display = "block";
 
   sendJSON({ base64 });
 }
 
-/* ---------- HELPERS ---------- */
-async function sendJSON(payload) {
+/* HELPERS */
+async function sendJSON(data) {
   const res = await fetch(BACKEND_URL, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload)
+    body: JSON.stringify(data)
   });
-
-  showResult(res);
+  show(res);
 }
 
-async function showResult(res) {
-  const data = await res.json();
-  document.getElementById("output").textContent =
-    JSON.stringify(data, null, 2);
+async function show(res) {
+  const json = await res.json();
+  output.textContent = JSON.stringify(json, null, 2);
 }
 </script>
 
