@@ -29,53 +29,110 @@
 <pre id="out"></pre>
 
 <script>
-const BACKEND = "https://scifair-backend.onrender.com/";
+const BACKEND_URL = "https://scifair-backend.onrender.com";
 
+/* ---------- UI HELPERS ---------- */
+function hideAll() {
+  document.getElementById("urlInput").style.display = "none";
+  document.getElementById("fileInput").style.display = "none";
+  document.getElementById("webcamContainer").style.display = "none";
+}
+
+function selectURL() {
+  hideAll();
+  document.getElementById("urlInput").style.display = "block";
+}
+
+function selectFile() {
+  hideAll();
+  document.getElementById("fileInput").style.display = "block";
+}
+
+async function selectWebcam() {
+  hideAll();
+  document.getElementById("webcamContainer").style.display = "block";
+
+  const video = document.getElementById("webcam");
+  const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+  video.srcObject = stream;
+}
+
+/* ---------- RUN URL ---------- */
 async function runURL() {
-  const image = document.getElementById("url").value;
-  const res = await fetch(BACKEND, {
+  const url = document.getElementById("imageUrl").value.trim();
+  if (!url) return alert("Enter an image URL");
+
+  document.getElementById("preview").src = url;
+  document.getElementById("preview").style.display = "block";
+
+  const res = await fetch(BACKEND_URL, {
     method: "POST",
-    headers: {"Content-Type":"application/json"},
-    body: JSON.stringify({ image })
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      image: {
+        type: "url",
+        value: url
+      }
+    })
   });
-  document.getElementById("out").textContent =
-    JSON.stringify(await res.json(), null, 2);
+
+  const data = await res.json();
+  showResult(data);
 }
 
+/* ---------- RUN FILE ---------- */
 async function runFile() {
-  const f = document.getElementById("file").files[0];
-  const fd = new FormData();
-  fd.append("file", f);
+  const file = document.getElementById("filePicker").files[0];
+  if (!file) return alert("Choose a file first");
 
-  const res = await fetch(BACKEND, {
+  const formData = new FormData();
+  formData.append("file", file);
+
+  document.getElementById("preview").src = URL.createObjectURL(file);
+  document.getElementById("preview").style.display = "block";
+
+  const res = await fetch(BACKEND_URL, {
     method: "POST",
-    body: fd
-  });
-  document.getElementById("out").textContent =
-    JSON.stringify(await res.json(), null, 2);
-}
-
-async function startCam() {
-  const stream = await navigator.mediaDevices.getUserMedia({video:true});
-  document.getElementById("video").srcObject = stream;
-}
-
-async function runCam() {
-  const v = document.getElementById("video");
-  const c = document.createElement("canvas");
-  c.width = v.videoWidth;
-  c.height = v.videoHeight;
-  c.getContext("2d").drawImage(v,0,0);
-  const base64 = c.toDataURL("image/jpeg");
-
-  const res = await fetch(BACKEND, {
-    method: "POST",
-    headers: {"Content-Type":"application/json"},
-    body: JSON.stringify({ base64 })
+    body: formData
   });
 
-  document.getElementById("out").textContent =
-    JSON.stringify(await res.json(), null, 2);
+  const data = await res.json();
+  showResult(data);
+}
+
+/* ---------- RUN WEBCAM ---------- */
+async function captureWebcam() {
+  const video = document.getElementById("webcam");
+
+  const canvas = document.createElement("canvas");
+  canvas.width = video.videoWidth;
+  canvas.height = video.videoHeight;
+  canvas.getContext("2d").drawImage(video, 0, 0);
+
+  const base64 = canvas.toDataURL("image/jpeg").split(",")[1];
+
+  document.getElementById("preview").src = canvas.toDataURL("image/jpeg");
+  document.getElementById("preview").style.display = "block";
+
+  const res = await fetch(BACKEND_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      image: {
+        type: "base64",
+        value: base64
+      }
+    })
+  });
+
+  const data = await res.json();
+  showResult(data);
+}
+
+/* ---------- DISPLAY RESULT ---------- */
+function showResult(data) {
+  document.getElementById("output").textContent =
+    JSON.stringify(data, null, 2);
 }
 </script>
 
