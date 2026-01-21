@@ -1,40 +1,149 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Roboflow Classifier</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Roboflow Plant Classifier</title>
+
+<style>
+: root {
+  --green: #2e7d32;
+  --light-green: #e8f5e9;
+}
+
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  background: var(--light-green);
+  color: #222;
+  display: flex;
+  justify-content: center;
+}
+
+.container {
+  width: 100%;
+  max-width: 700px;
+  padding: 20px;
+}
+
+.card {
+  background: white;
+  border-radius: 16px;
+  padding: 20px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+}
+
+h1 {
+  text-align: center;
+  color: var(--green);
+  margin-bottom: 20px;
+}
+
+.section {
+  margin-bottom: 20px;
+}
+
+input[type="text"],
+input[type="file"] {
+  width: 100%;
+  padding: 12px;
+  border-radius: 10px;
+  border: 1px solid #ccc;
+  margin-bottom: 10px;
+}
+
+button {
+  padding: 12px 16px;
+  border: none;
+  border-radius: 12px;
+  background: var(--green);
+  color: white;
+  font-size: 15px;
+  cursor: pointer;
+  margin: 4px 4px 4px 0;
+}
+
+button.secondary {
+  background: #558b2f;
+}
+
+button.danger {
+  background: #c62828;
+}
+
+button:disabled {
+  opacity: 0.6;
+}
+
+video, img {
+  width: 100%;
+  max-height: 360px;
+  border-radius: 14px;
+  margin-top: 10px;
+  display: none;
+  object-fit: cover;
+}
+
+pre {
+  background: #f1f1f1;
+  padding: 12px;
+  border-radius: 12px;
+  overflow-x: auto;
+  margin-top: 15px;
+  font-size: 13px;
+}
+</style>
 </head>
 
 <body>
 
-<h1>Roboflow Classifier</h1>
+<div class="container">
+  <div class="card">
 
-<input id="imageUrl" size="60" placeholder="Image URL">
-<button onclick="runURL()">Run URL</button>
+    <h1>🌱 Plant Classifier</h1>
 
-<br><br>
+    <!-- URL -->
+    <div class="section">
+      <input id="imageUrl" placeholder="Paste image URL">
+      <button onclick="runURL()">Run URL</button>
+    </div>
 
-<input type="file" id="filePicker">
-<button onclick="runFile()">Run File</button>
+    <!-- FILE -->
+    <div class="section">
+      <input type="file" id="filePicker" accept="image/*">
+      <button onclick="runFile()">Upload Image</button>
+    </div>
 
-<br><br>
+    <!-- CAMERA -->
+    <div class="section">
+      <button onclick="startCamera()">Start Camera</button>
+      <button class="secondary" onclick="flipCamera()">Flip Camera</button>
+      <button class="danger" onclick="stopCamera()">Stop Camera</button>
+      <br><br>
+      <button onclick="captureWebcam()">Capture & Run</button>
+    </div>
 
-<button onclick="startCamera()">Start Camera</button>
-<button onclick="captureWebcam()">Capture</button>
+    <video id="webcam" autoplay playsinline></video>
+    <img id="preview">
+    <pre id="output"></pre>
 
-<br><br>
-
-<video id="webcam" autoplay playsinline style="display:none;width:300px;"></video>
-<img id="preview" style="display:none;width:300px;">
-<pre id="output"></pre>
+  </div>
+</div>
 
 <script>
 const BACKEND_URL = "https://scifair-backend.onrender.com";
 
-/* URL */
+const webcam = document.getElementById("webcam");
+const preview = document.getElementById("preview");
+const output = document.getElementById("output");
+
+let stream = null;
+let cameraFacing = "environment"; // back camera default
+
+/* ---------- URL ---------- */
 async function runURL() {
   const url = imageUrl.value.trim();
-  if (!url) return alert("Enter URL");
+  if (!url) return alert("Enter an image URL");
 
   preview.src = url;
   preview.style.display = "block";
@@ -42,10 +151,10 @@ async function runURL() {
   sendJSON({ url });
 }
 
-/* FILE */
+/* ---------- FILE ---------- */
 async function runFile() {
   const file = filePicker.files[0];
-  if (!file) return alert("Pick file");
+  if (!file) return alert("Pick an image");
 
   const fd = new FormData();
   fd.append("file", file);
@@ -53,32 +162,56 @@ async function runFile() {
   preview.src = URL.createObjectURL(file);
   preview.style.display = "block";
 
-  const res = await fetch(BACKEND_URL, { method: "POST", body: fd });
+  const res = await fetch(BACKEND_URL, {
+    method: "POST",
+    body: fd
+  });
+
   show(res);
 }
 
-/* CAMERA */
-let stream;
+/* ---------- CAMERA ---------- */
 async function startCamera() {
-  stream = await navigator.mediaDevices.getUserMedia({ video: true });
+  stopCamera();
+
+  stream = await navigator.mediaDevices.getUserMedia({
+    video: { facingMode: cameraFacing }
+  });
+
   webcam.srcObject = stream;
   webcam.style.display = "block";
 }
 
+function stopCamera() {
+  if (stream) {
+    stream.getTracks().forEach(track => track.stop());
+    stream = null;
+  }
+  webcam.style.display = "none";
+}
+
+function flipCamera() {
+  cameraFacing = cameraFacing === "user" ? "environment" : "user";
+  startCamera();
+}
+
 async function captureWebcam() {
+  if (!stream) return alert("Start the camera first");
+
   const canvas = document.createElement("canvas");
   canvas.width = webcam.videoWidth;
   canvas.height = webcam.videoHeight;
   canvas.getContext("2d").drawImage(webcam, 0, 0);
 
   const base64 = canvas.toDataURL("image/jpeg");
+
   preview.src = base64;
   preview.style.display = "block";
 
   sendJSON({ base64 });
 }
 
-/* HELPERS */
+/* ---------- HELPERS ---------- */
 async function sendJSON(data) {
   const res = await fetch(BACKEND_URL, {
     method: "POST",
