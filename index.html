@@ -6,14 +6,14 @@
 <title>Roboflow Plant Classifier</title>
 
 <style>
-: root {
+:root {
   --green: #2e7d32;
   --light-green: #e8f5e9;
 }
 
 body {
   margin: 0;
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  font-family: "SF Pro Rounded", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
   background: var(--light-green);
   color: #222;
   display: flex;
@@ -28,39 +28,41 @@ body {
 
 .card {
   background: white;
-  border-radius: 16px;
-  padding: 20px;
-  box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+  border-radius: 18px;
+  padding: 24px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.12);
 }
 
 h1 {
   text-align: center;
   color: var(--green);
-  margin-bottom: 20px;
+  margin-bottom: 24px;
 }
 
 .section {
   margin-bottom: 20px;
 }
 
+select,
 input[type="text"],
 input[type="file"] {
   width: 100%;
   padding: 12px;
-  border-radius: 10px;
+  border-radius: 12px;
   border: 1px solid #ccc;
-  margin-bottom: 10px;
+  margin-bottom: 12px;
+  font-size: 15px;
 }
 
 button {
-  padding: 12px 16px;
+  padding: 12px 18px;
   border: none;
-  border-radius: 12px;
+  border-radius: 14px;
   background: var(--green);
   color: white;
   font-size: 15px;
   cursor: pointer;
-  margin: 4px 4px 4px 0;
+  margin: 6px 6px 0 0;
 }
 
 button.secondary {
@@ -78,18 +80,18 @@ button:disabled {
 video, img {
   width: 100%;
   max-height: 360px;
-  border-radius: 14px;
-  margin-top: 10px;
+  border-radius: 16px;
+  margin-top: 12px;
   display: none;
   object-fit: cover;
 }
 
 pre {
   background: #f1f1f1;
-  padding: 12px;
-  border-radius: 12px;
+  padding: 14px;
+  border-radius: 14px;
   overflow-x: auto;
-  margin-top: 15px;
+  margin-top: 18px;
   font-size: 13px;
 }
 </style>
@@ -102,25 +104,35 @@ pre {
 
     <h1>🌱 Plant Classifier</h1>
 
-    <!-- URL -->
+    <!-- MODE SELECT -->
     <div class="section">
+      <select id="modeSelect" onchange="switchMode()">
+        <option value="url">Image URL</option>
+        <option value="file">File Upload</option>
+        <option value="camera">Webcam</option>
+      </select>
+    </div>
+
+    <!-- URL MODE -->
+    <div class="section" id="urlSection">
       <input id="imageUrl" placeholder="Paste image URL">
-      <button onclick="runURL()">Run URL</button>
     </div>
 
-    <!-- FILE -->
-    <div class="section">
+    <!-- FILE MODE -->
+    <div class="section" id="fileSection" style="display:none;">
       <input type="file" id="filePicker" accept="image/*">
-      <button onclick="runFile()">Upload Image</button>
     </div>
 
-    <!-- CAMERA -->
-    <div class="section">
-      <button onclick="startCamera()">Start Camera</button>
+    <!-- CAMERA MODE -->
+    <div class="section" id="cameraSection" style="display:none;">
+      <button onclick="startCamera()">Start Capturing</button>
       <button class="secondary" onclick="flipCamera()">Flip Camera</button>
       <button class="danger" onclick="stopCamera()">Stop Camera</button>
-      <br><br>
-      <button onclick="captureWebcam()">Capture & Run</button>
+    </div>
+
+    <!-- RUN BUTTON -->
+    <div class="section">
+      <button onclick="runSelected()">Run</button>
     </div>
 
     <video id="webcam" autoplay playsinline></video>
@@ -136,12 +148,38 @@ const BACKEND_URL = "https://scifair-backend.onrender.com";
 const webcam = document.getElementById("webcam");
 const preview = document.getElementById("preview");
 const output = document.getElementById("output");
+const modeSelect = document.getElementById("modeSelect");
 
 let stream = null;
-let cameraFacing = "environment"; // back camera default
+let cameraFacing = "environment";
+
+/* ---------- MODE SWITCH ---------- */
+function switchMode() {
+  stopCamera();
+
+  urlSection.style.display = "none";
+  fileSection.style.display = "none";
+  cameraSection.style.display = "none";
+
+  preview.style.display = "none";
+  webcam.style.display = "none";
+
+  if (modeSelect.value === "url") urlSection.style.display = "block";
+  if (modeSelect.value === "file") fileSection.style.display = "block";
+  if (modeSelect.value === "camera") cameraSection.style.display = "block";
+}
+
+/* ---------- RUN HANDLER ---------- */
+async function runSelected() {
+  const mode = modeSelect.value;
+
+  if (mode === "url") runURL();
+  else if (mode === "file") runFile();
+  else if (mode === "camera") captureWebcam();
+}
 
 /* ---------- URL ---------- */
-async function runURL() {
+function runURL() {
   const url = imageUrl.value.trim();
   if (!url) return alert("Enter an image URL");
 
@@ -154,7 +192,7 @@ async function runURL() {
 /* ---------- FILE ---------- */
 async function runFile() {
   const file = filePicker.files[0];
-  if (!file) return alert("Pick an image");
+  if (!file) return alert("Choose an image file");
 
   const fd = new FormData();
   fd.append("file", file);
@@ -195,7 +233,7 @@ function flipCamera() {
   startCamera();
 }
 
-async function captureWebcam() {
+function captureWebcam() {
   if (!stream) return alert("Start the camera first");
 
   const canvas = document.createElement("canvas");
