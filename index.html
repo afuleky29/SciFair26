@@ -263,7 +263,7 @@ async function sendJSON(data) {
 }
 
 /* ---------- HANDLE BACKEND RESPONSE ---------- */
-async function show(res) {
+async function  handleResponse(res) {
   const json = await res.json();
 
   // Fallback display if something unexpected comes back
