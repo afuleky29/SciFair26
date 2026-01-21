@@ -144,6 +144,7 @@ pre {
 
 <script>
 const BACKEND_URL = "https://scifair-backend.onrender.com";
+const CONFIDENCE_THRESHOLD = 0.95;
 
 const webcam = document.getElementById("webcam");
 const preview = document.getElementById("preview");
@@ -163,6 +164,7 @@ function switchMode() {
 
   preview.style.display = "none";
   webcam.style.display = "none";
+  output.textContent = "";
 
   if (modeSelect.value === "url") urlSection.style.display = "block";
   if (modeSelect.value === "file") fileSection.style.display = "block";
@@ -170,7 +172,7 @@ function switchMode() {
 }
 
 /* ---------- RUN HANDLER ---------- */
-async function runSelected() {
+function runSelected() {
   const mode = modeSelect.value;
 
   if (mode === "url") runURL();
@@ -205,7 +207,7 @@ async function runFile() {
     body: fd
   });
 
-  show(res);
+  handleResponse(res);
 }
 
 /* ---------- CAMERA ---------- */
@@ -249,19 +251,58 @@ function captureWebcam() {
   sendJSON({ base64 });
 }
 
-/* ---------- HELPERS ---------- */
+/* ---------- SEND JSON TO BACKEND ---------- */
 async function sendJSON(data) {
   const res = await fetch(BACKEND_URL, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data)
   });
-  show(res);
+
+  handleResponse(res);
 }
 
+/* ---------- HANDLE BACKEND RESPONSE ---------- */
 async function show(res) {
   const json = await res.json();
-  output.textContent = JSON.stringify(json, null, 2);
+
+  // Fallback display if something unexpected comes back
+  if (!json || !json.outputs) {
+    output.textContent = JSON.stringify(json, null, 2);
+    return;
+  }
+
+  // Adjust this path if your workflow output name is different
+  const predictions =
+    json.outputs[0]?.predictions ||
+    json.outputs[0]?.data ||
+    [];
+
+  if (!predictions.length) {
+    output.textContent = "I'm not sure what plant this is.";
+    return;
+  }
+
+  const top = predictions[0];
+  const label = top.class || top.label || "I'm not sure what plant this is";
+
+  // ✅ OPTION 1 APPLIED HERE
+  if (label !== "I'm not sure what plant this is") {
+    const confidence = top.confidence ?? 0;
+
+    if (confidence >= 0.95) {
+      output.textContent =
+        `🌱 I’m confident this is **${label}** ` +
+        `(confidence: ${(confidence * 100).toFixed(1)}%)`;
+    } else {
+      output.textContent =
+        `🤔 I think this is **${label}**, ` +
+        `but please double-check ` +
+        `(confidence: ${(confidence * 100).toFixed(1)}%)`;
+    }
+  } else {
+    output.textContent = label;
+  }
 }
 </script>
 
