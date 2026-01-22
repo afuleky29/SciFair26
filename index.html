@@ -292,11 +292,11 @@ async function  handleResponse(res) {
 
     if (confidence >= 0.95) {
       output.textContent =
-        `🌱 I’m confident this is **${label}** ` +
+        `I’m confident this is **${label}** ` +
         `(confidence: ${(confidence * 100).toFixed(1)}%)`;
     } else {
       output.textContent =
-        `🤔 I think this is **${label}**, ` +
+        `I think this is **${label}**, ` +
         `but please double-check ` +
         `(confidence: ${(confidence * 100).toFixed(1)}%)`;
     }
