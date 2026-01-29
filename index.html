@@ -282,15 +282,17 @@ async function handleResponse(res) {
     return;
   }
 
-  const predictions = json.outputs[0]?.predictions || [];
-  if (!predictions.length) {
-    humanOutput.textContent = "I'm not sure what plant this is.";
-    return;
-  }
+const predictions =
+  json.outputs[0]?.predictions?.predictions || [];
 
-  const top = predictions[0];
-  const label = top.class || top.label || "Unknown";
-  const confidence = top.confidence ?? 0;
+if (!predictions.length) {
+  humanOutput.textContent = "I'm not sure what plant this is.";
+  return;
+}
+
+const top = predictions[0];
+const label = top.class || top.label || "Unknown";
+const confidence = top.confidence ?? 0;
 
   if (confidence >= CONFIDENCE_THRESHOLD) {
     humanOutput.textContent =
