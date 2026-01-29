@@ -99,6 +99,12 @@ label.toggle {
   font-size: 14px;
   cursor: pointer;
 }
+
+/* 🔵 THINKING STATE */
+#humanOutput.loading {
+  opacity: 0.7;
+  font-style: italic;
+}
 </style>
 </head>
 
@@ -174,6 +180,12 @@ const jsonToggle = document.getElementById("jsonToggle");
 let stream = null;
 let cameraFacing = "environment";
 
+/* ---------- THINKING ---------- */
+function showThinking() {
+  humanOutput.textContent = "🤔 I’m thinking…";
+  humanOutput.classList.add("loading");
+}
+
 /* ---------- MODE SWITCH ---------- */
 function switchMode() {
   stopCamera();
@@ -207,6 +219,7 @@ function runURL() {
   preview.src = url;
   preview.style.display = "block";
 
+  showThinking();
   sendJSON({ url });
 }
 
@@ -221,6 +234,7 @@ async function runFile() {
   preview.src = URL.createObjectURL(file);
   preview.style.display = "block";
 
+  showThinking();
   const res = await fetch(BACKEND_URL, { method: "POST", body: fd });
   handleResponse(res);
 }
@@ -256,6 +270,7 @@ function captureWebcam() {
   preview.src = base64;
   preview.style.display = "block";
 
+  showThinking();
   sendJSON({ base64 });
 }
 
@@ -271,9 +286,10 @@ async function sendJSON(data) {
 
 /* ---------- RESPONSE HANDLING ---------- */
 async function handleResponse(res) {
+  humanOutput.classList.remove("loading");
+
   const json = await res.json();
 
-  // Raw JSON toggle
   jsonOutput.textContent = JSON.stringify(json, null, 2);
   jsonOutput.style.display = jsonToggle.checked ? "block" : "none";
 
@@ -282,17 +298,17 @@ async function handleResponse(res) {
     return;
   }
 
-const predictions =
-  json.outputs[0]?.predictions?.predictions || [];
+  const predictions =
+    json.outputs[0]?.predictions?.predictions || [];
 
-if (!predictions.length) {
-  humanOutput.textContent = "I'm not sure what plant this is.";
-  return;
-}
+  if (!predictions.length) {
+    humanOutput.textContent = "I'm not sure what plant this is.";
+    return;
+  }
 
-const top = predictions[0];
-const label = top.class || top.label || "Unknown";
-const confidence = top.confidence ?? 0;
+  const top = predictions[0];
+  const label = top.class || top.label || "Unknown";
+  const confidence = top.confidence ?? 0;
 
   if (confidence >= CONFIDENCE_THRESHOLD) {
     humanOutput.textContent =
