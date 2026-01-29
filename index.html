@@ -73,10 +73,6 @@ button.danger {
   background: #c62828;
 }
 
-button:disabled {
-  opacity: 0.6;
-}
-
 video, img {
   width: 100%;
   max-height: 360px;
@@ -91,8 +87,17 @@ pre {
   padding: 14px;
   border-radius: 14px;
   overflow-x: auto;
-  margin-top: 18px;
+  margin-top: 14px;
   font-size: 13px;
+  display: none;
+}
+
+label.toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  cursor: pointer;
 }
 </style>
 </head>
@@ -130,14 +135,27 @@ pre {
       <button class="danger" onclick="stopCamera()">Stop Camera</button>
     </div>
 
-    <!-- RUN BUTTON -->
+    <!-- RUN -->
     <div class="section">
       <button onclick="runSelected()">Run</button>
     </div>
 
+    <!-- JSON TOGGLE -->
+    <div class="section">
+      <label class="toggle">
+        <input type="checkbox" id="jsonToggle" onchange="toggleJSON()">
+        Show raw JSON response
+      </label>
+    </div>
+
     <video id="webcam" autoplay playsinline></video>
     <img id="preview">
-    <pre id="output"></pre>
+
+    <!-- HUMAN OUTPUT -->
+    <div id="humanOutput"></div>
+
+    <!-- RAW JSON -->
+    <pre id="jsonOutput"></pre>
 
   </div>
 </div>
@@ -148,8 +166,10 @@ const CONFIDENCE_THRESHOLD = 0.95;
 
 const webcam = document.getElementById("webcam");
 const preview = document.getElementById("preview");
-const output = document.getElementById("output");
 const modeSelect = document.getElementById("modeSelect");
+const humanOutput = document.getElementById("humanOutput");
+const jsonOutput = document.getElementById("jsonOutput");
+const jsonToggle = document.getElementById("jsonToggle");
 
 let stream = null;
 let cameraFacing = "environment";
@@ -164,20 +184,19 @@ function switchMode() {
 
   preview.style.display = "none";
   webcam.style.display = "none";
-  output.textContent = "";
+  humanOutput.textContent = "";
+  jsonOutput.style.display = "none";
 
   if (modeSelect.value === "url") urlSection.style.display = "block";
   if (modeSelect.value === "file") fileSection.style.display = "block";
   if (modeSelect.value === "camera") cameraSection.style.display = "block";
 }
 
-/* ---------- RUN HANDLER ---------- */
+/* ---------- RUN ---------- */
 function runSelected() {
-  const mode = modeSelect.value;
-
-  if (mode === "url") runURL();
-  else if (mode === "file") runFile();
-  else if (mode === "camera") captureWebcam();
+  if (modeSelect.value === "url") runURL();
+  else if (modeSelect.value === "file") runFile();
+  else captureWebcam();
 }
 
 /* ---------- URL ---------- */
@@ -194,7 +213,7 @@ function runURL() {
 /* ---------- FILE ---------- */
 async function runFile() {
   const file = filePicker.files[0];
-  if (!file) return alert("Choose an image file");
+  if (!file) return alert("Choose an image");
 
   const fd = new FormData();
   fd.append("file", file);
@@ -202,31 +221,21 @@ async function runFile() {
   preview.src = URL.createObjectURL(file);
   preview.style.display = "block";
 
-  const res = await fetch(BACKEND_URL, {
-    method: "POST",
-    body: fd
-  });
-
+  const res = await fetch(BACKEND_URL, { method: "POST", body: fd });
   handleResponse(res);
 }
 
 /* ---------- CAMERA ---------- */
 async function startCamera() {
   stopCamera();
-
-  stream = await navigator.mediaDevices.getUserMedia({
-    video: { facingMode: cameraFacing }
-  });
-
+  stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: cameraFacing } });
   webcam.srcObject = stream;
   webcam.style.display = "block";
 }
 
 function stopCamera() {
-  if (stream) {
-    stream.getTracks().forEach(track => track.stop());
-    stream = null;
-  }
+  if (stream) stream.getTracks().forEach(t => t.stop());
+  stream = null;
   webcam.style.display = "none";
 }
 
@@ -244,65 +253,57 @@ function captureWebcam() {
   canvas.getContext("2d").drawImage(webcam, 0, 0);
 
   const base64 = canvas.toDataURL("image/jpeg");
-
   preview.src = base64;
   preview.style.display = "block";
 
   sendJSON({ base64 });
 }
 
-/* ---------- SEND JSON TO BACKEND ---------- */
+/* ---------- BACKEND ---------- */
 async function sendJSON(data) {
   const res = await fetch(BACKEND_URL, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data)
   });
-
   handleResponse(res);
 }
 
-/* ---------- HANDLE BACKEND RESPONSE ---------- */
-async function  handleResponse(res) {
+/* ---------- RESPONSE HANDLING ---------- */
+async function handleResponse(res) {
   const json = await res.json();
 
-  // Fallback display if something unexpected comes back
-  if (!json || !json.outputs) {
-    output.textContent = JSON.stringify(json, null, 2);
+  // Raw JSON toggle
+  jsonOutput.textContent = JSON.stringify(json, null, 2);
+  jsonOutput.style.display = jsonToggle.checked ? "block" : "none";
+
+  if (!json.outputs) {
+    humanOutput.textContent = "Unexpected response from model.";
     return;
   }
 
-  // Adjust this path if your workflow output name is different
-  const predictions =
-    json.outputs[0]?.predictions ||
-    json.outputs[0]?.data ||
-    [];
-
+  const predictions = json.outputs[0]?.predictions || [];
   if (!predictions.length) {
-    output.textContent = "I'm not sure what plant this is.";
+    humanOutput.textContent = "I'm not sure what plant this is.";
     return;
   }
 
   const top = predictions[0];
-  const label = top.class || top.label || "I'm not sure what plant this is";
+  const label = top.class || top.label || "Unknown";
+  const confidence = top.confidence ?? 0;
 
-  // ✅ OPTION 1 APPLIED HERE
-  if (label !== "I'm not sure what plant this is") {
-    const confidence = top.confidence ?? 0;
-
-    if (confidence >= 0.95) {
-      output.textContent =
-        `I’m confident this is **${label}** ` +
-        `(confidence: ${(confidence * 100).toFixed(1)}%)`;
-    } else {
-      output.textContent =
-        `I think this is **${label}**, ` +
-        `but please double-check ` +
-        `(confidence: ${(confidence * 100).toFixed(1)}%)`;
-    }
+  if (confidence >= CONFIDENCE_THRESHOLD) {
+    humanOutput.textContent =
+      `🌱 I’m confident this is ${label} (${(confidence * 100).toFixed(1)}%)`;
   } else {
-    output.textContent = label;
+    humanOutput.textContent =
+      `🤔 I think this is ${label}, but please double-check ` +
+      `(${(confidence * 100).toFixed(1)}%)`;
   }
+}
+
+function toggleJSON() {
+  jsonOutput.style.display = jsonToggle.checked ? "block" : "none";
 }
 </script>
 
