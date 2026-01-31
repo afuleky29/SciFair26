@@ -119,6 +119,12 @@ label.toggle {
     "ELSH" 0,
     "ELXP" 0;
 }
+  .gaegu-regular {
+  font-family: "Gaegu", sans-serif;
+  font-weight: 400;
+  font-style: normal;
+}
+
 </style>
 </head>
 
@@ -132,9 +138,9 @@ label.toggle {
     <!-- MODE SELECT -->
     <div class="section">
       <select id="modeSelect" onchange="switchMode()">
-        <option value="url">Image URL</option>
-        <option value="file">File Upload</option>
-        <option value="camera">Webcam</option>
+        <option class=gaegu-regular value="url">Image URL</option>
+        <option class=gaegu-regular value="file">File Upload</option>
+        <option class=gaegu-regular value="camera">Webcam</option>
       </select>
     </div>
 
@@ -150,20 +156,20 @@ label.toggle {
 
     <!-- CAMERA MODE -->
     <div class="section" id="cameraSection" style="display:none;">
-      <button onclick="startCamera()">Start Capturing</button>
-      <button class="secondary" onclick="flipCamera()">Flip Camera</button>
-      <button class="danger" onclick="stopCamera()">Stop Camera</button>
+      <button class=gaegu-regular onclick="startCamera()">Start Capturing</button>
+      <button class=gaegu-regular class="secondary" onclick="flipCamera()">Flip Camera</button>
+      <button class=gaegu-regular class="danger" onclick="stopCamera()">Stop Camera</button>
     </div>
 
     <!-- RUN -->
     <div class="section">
-      <button onclick="runSelected()">Run</button>
+      <button class=gaegu-regular onclick="runSelected()">Run</button>
     </div>
 
     <!-- JSON TOGGLE -->
     <div class="section">
       <label class="toggle">
-        <input type="checkbox" id="jsonToggle" onchange="toggleJSON()">
+        <input class=gaegu-regular type="checkbox" id="jsonToggle" onchange="toggleJSON()">
         Show raw JSON response
       </label>
     </div>
